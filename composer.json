@@ -1,0 +1,30 @@
+{
+    "name": "azizdevfull/lang-gen",
+    "description": "Laravel uchun avtomatik tarjima generatori",
+    "version": "1.0.0",
+    "type": "library",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Azizbek",
+            "email": "aziz16110904@gmail.com"
+        }
+    ],
+    "autoload": {
+        "psr-4": {
+            "AzizDevFull\\LangGen\\": "src/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "AzizDevFull\\LangGen\\LangGenServiceProvider"
+            ]
+        }
+    },
+    "require": {
+        "illuminate/console": "^10.0|^11.0|^12.0",
+        "illuminate/support": "^10.0|^11.0|^12.0",
+        "illuminate/filesystem": "^10.0|^11.0|^12.0"
+    }
+}
