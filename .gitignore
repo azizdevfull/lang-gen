@@ -1,7 +1,8 @@
 /vendor
 /node_modules
+/coverage
+.phpunit.result.cache
 .idea
 .vscode
 .DS_Store
 composer.lock
-phpunit.xml
