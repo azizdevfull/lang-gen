@@ -122,10 +122,6 @@ return [
 composer test
 ```
 
-## 🤝 Contributing
-
-Please see [CONTRIBUTING](CONTRIBUTING.md) for details.
-
 ## 🔒 Security
 
 If you discover any security related issues, please email aziz16110904@gmail.com instead of using the issue tracker.
@@ -133,7 +129,6 @@ If you discover any security related issues, please email aziz16110904@gmail.com
 ## 👥 Credits
 
 -   [Azizbek](https://github.com/azizdevfull)
--   [All Contributors](../../contributors)
 
 ## 📄 License
 
