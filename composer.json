@@ -1,6 +1,6 @@
 {
     "name": "azizdevfull/lang-gen",
-    "description": "Laravel uchun avtomatik tarjima generatori",
+    "description": "Automatic translation generator for Laravel",
     "version": "1.0.0",
     "type": "library",
     "license": "MIT",
