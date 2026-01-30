@@ -57,11 +57,11 @@ class LangGenCommand extends Command
 
     protected function scanFiles(): array
     {
-        $paths = [
+        $paths = config('lang-gen.paths', [
             base_path('app'),
             base_path('resources/views'),
             base_path('routes'),
-        ];
+        ]);
 
         $pattern = '/(?:__|@lang|trans)\s*\(\s*[\'"]([^\'"]+)[\'"]/';
 

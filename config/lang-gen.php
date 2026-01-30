@@ -1,7 +1,23 @@
 <?php
 
 return [
-
+    /*
+    |--------------------------------------------------------------------------
+    | Scanned Directories
+    |--------------------------------------------------------------------------
+    |
+    | Here you may define the directories that LangGen should scan for
+    | translation keys. By default, we scan the 'app', 'resources/views',
+    | and 'routes' directories.
+    |
+    | You can add custom paths here, for example: base_path('Modules')
+    |
+    */
+    'paths' => [
+        base_path('app'),
+        base_path('resources/views'),
+        base_path('routes'),
+    ],
     /*
     |--------------------------------------------------------------------------
     | Conflict Policy
