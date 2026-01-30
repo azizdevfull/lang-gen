@@ -11,34 +11,44 @@ class LangGenCommand extends Command
 {
     protected $signature = 'lang:gen {lang? : The target language code (e.g., uz, en, ru)}';
 
-    protected $description = 'Scan application code and generate missing translation keys in PHP language files.';
+    protected $description = 'Scan application code and generate missing translation keys (PHP arrays & JSON).';
 
     public function handle()
     {
         $langCode = $this->argument('lang') ?: config('lang-gen.default_lang', 'en');
-        $conflictPolicy = config('lang-gen.conflict_policy', 'preserve'); // 'preserve' or 'overwrite'
+        $conflictPolicy = config('lang-gen.conflict_policy', 'preserve');
 
-        $langPath = lang_path($langCode);
+        $langPath = lang_path();
+        $targetDir = "$langPath/$langCode";
 
         $this->info("Target Language: [$langCode]");
-        $this->info("Conflict Policy: [$conflictPolicy]");
 
-        if (!File::exists($langPath)) {
-            File::makeDirectory($langPath, 0755, true);
-            $this->comment("Directory created: $langPath");
+        if (!File::exists($targetDir)) {
+            File::makeDirectory($targetDir, 0755, true);
         }
 
         $this->info("Scanning files...");
 
-        $foundKeysByFile = $this->scanFiles();
+        [$phpKeys, $jsonKeys] = $this->scanFiles();
 
-        if (empty($foundKeysByFile)) {
+        $jsonCount = count($jsonKeys);
+        $phpCount = 0;
+        foreach ($phpKeys as $k)
+            $phpCount += count($k);
+
+        $this->comment("Found: $phpCount PHP keys (array) and $jsonCount JSON keys (strings).");
+
+        if (empty($phpKeys) && empty($jsonKeys)) {
             $this->warn("No translation keys found.");
             return;
         }
 
-        foreach ($foundKeysByFile as $fileName => $keys) {
-            $this->processFile($fileName, $keys, $langPath, $langCode, $conflictPolicy);
+        foreach ($phpKeys as $fileName => $keys) {
+            $this->processPhpFile($fileName, $keys, $targetDir, $langCode, $conflictPolicy);
+        }
+
+        if (!empty($jsonKeys)) {
+            $this->processJsonFile($jsonKeys, $langPath, $langCode);
         }
 
         $this->info("------------------------------------------------");
@@ -50,10 +60,13 @@ class LangGenCommand extends Command
         $paths = [
             base_path('app'),
             base_path('resources/views'),
+            base_path('routes'),
         ];
 
-        $pattern = '/(?:__|@lang|trans)\([\'"]([^\'"]+)[\'"]\)/';
-        $keysByFile = [];
+        $pattern = '/(?:__|@lang|trans)\s*\(\s*[\'"]([^\'"]+)[\'"]/';
+
+        $phpKeysByFile = [];
+        $jsonKeys = [];
 
         foreach ($paths as $path) {
             if (!File::exists($path))
@@ -64,42 +77,42 @@ class LangGenCommand extends Command
             foreach ($files as $file) {
                 if (preg_match_all($pattern, $file->getContents(), $matches)) {
                     foreach ($matches[1] as $key) {
-                        if (!Str::contains($key, '.'))
+                        if (trim($key) === '')
                             continue;
 
-                        [$fileName, $nestedKey] = explode('.', $key, 2);
-                        $keysByFile[$fileName][] = $nestedKey;
+                        if (Str::contains($key, ' ') || !Str::contains($key, '.')) {
+                            $jsonKeys[] = $key;
+                        } else {
+                            [$fileName, $nestedKey] = explode('.', $key, 2);
+                            $phpKeysByFile[$fileName][] = $nestedKey;
+                        }
                     }
                 }
             }
         }
 
-        return $keysByFile;
+        return [$phpKeysByFile, array_unique($jsonKeys)];
     }
 
-    protected function processFile($fileName, $keys, $langPath, $langCode, $conflictPolicy)
+    protected function processPhpFile($fileName, $keys, $langPath, $langCode, $conflictPolicy)
     {
         $filePath = "$langPath/$fileName.php";
         $keys = array_unique($keys);
 
         $currentData = File::exists($filePath) ? include($filePath) : [];
-
-        if (!is_array($currentData)) {
+        if (!is_array($currentData))
             $currentData = [];
-        }
 
         $modified = false;
 
         foreach ($keys as $nestedKey) {
-            if (Arr::has($currentData, $nestedKey)) {
+            if (Arr::has($currentData, $nestedKey))
                 continue;
-            }
 
             if ($this->hasConflict($currentData, $nestedKey)) {
                 if ($conflictPolicy === 'overwrite') {
-                    $this->warn("Overwriting conflict in [$fileName.php]: $nestedKey");
                 } else {
-                    $this->error("Skipped conflict in [$fileName.php]: $nestedKey (Existing value is a string)");
+                    $this->error("Conflict skipped: $fileName.php -> $nestedKey");
                     continue;
                 }
             }
@@ -110,8 +123,34 @@ class LangGenCommand extends Command
         }
 
         if ($modified) {
-            $this->saveFile($filePath, $currentData);
-            $this->line("<info>Updated:</info> lang/$langCode/$fileName.php");
+            $this->savePhpFile($filePath, $currentData);
+            $this->line("<info>Updated PHP:</info> lang/$langCode/$fileName.php");
+        }
+    }
+
+    protected function processJsonFile($keys, $langPath, $langCode)
+    {
+        $filePath = "$langPath/$langCode.json";
+
+        $currentData = [];
+        if (File::exists($filePath)) {
+            $currentData = json_decode(File::get($filePath), true) ?? [];
+        }
+
+        $modified = false;
+
+        foreach ($keys as $key) {
+            if (isset($currentData[$key]))
+                continue;
+
+            $currentData[$key] = $key;
+            $modified = true;
+        }
+
+        if ($modified) {
+            ksort($currentData);
+            File::put($filePath, json_encode($currentData, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+            $this->line("<info>Updated JSON:</info> lang/$langCode.json");
         }
     }
 
@@ -119,32 +158,25 @@ class LangGenCommand extends Command
     {
         $parts = explode('.', $key);
         $temp = $data;
-
         foreach ($parts as $part) {
             if (isset($temp[$part])) {
-                if (!is_array($temp[$part])) {
+                if (!is_array($temp[$part]))
                     return true;
-                }
                 $temp = $temp[$part];
             } else {
                 return false;
             }
         }
-
         return false;
     }
-    protected function saveFile(string $filePath, array $data)
+
+    protected function savePhpFile(string $filePath, array $data)
     {
         ksort($data);
-
         $export = var_export($data, true);
-
         $export = str_replace(['array (', ')', '=> ' . "\n"], ['[', ']', '=> '], $export);
-
         $export = preg_replace("/^([ ]*)  /m", '$1    ', $export);
-
         $content = "<?php\n\nreturn " . $export . ";\n";
-
         File::put($filePath, $content);
     }
 }
