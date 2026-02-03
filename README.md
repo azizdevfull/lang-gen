@@ -159,6 +159,17 @@ return [
 }
 ```
 
+
+## 🎥 Video Tutorial
+
+You can see how LangGen works and how to use it in a real project in this YouTube video:
+
+[![Laravel LangGen – Auto Generate Translations](https://img.youtube.com/vi/UCr1kR8rMy8/0.jpg)](https://youtu.be/UCr1kR8rMy8)
+
+👉 **Watch on YouTube:**
+[https://youtu.be/UCr1kR8rMy8](https://youtu.be/UCr1kR8rMy8)
+
+
 ## 🧪 Testing
 
 ```bash
